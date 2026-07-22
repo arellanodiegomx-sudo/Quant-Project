@@ -16,7 +16,7 @@ def save_price(ticker: str, price: float):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO prices (ticker, price) VALUES (%s, %s)", (ticker, price)
+        "INSERT INTO prices (ticker, price) VALUES (%s, %s)", (ticker, price) #prevents SQL injection use %s and tuple
     )
 
     conn.commit()

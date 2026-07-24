@@ -4,6 +4,7 @@ from database import get_connection
 from dataclasses import dataclass, field
 from typing import Dict
 import pandas as pd
+import numpy as np
 
 @dataclass
 class Portfolio:
@@ -33,7 +34,7 @@ class Portfolio:
     
 # data loader function to load historical data from the database
 def load_price(ticker: str) -> pd.DataFrame:
-    conn = get_connection
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute (""" SELECT fetched_at, price FROM prices WHERE ticker = %s ORDER BY fetched_at ASC""", (ticker,))
     rows = cursor.fetchall()
@@ -44,17 +45,20 @@ def load_price(ticker: str) -> pd.DataFrame:
     return df
 
 #backtesting function to simulate trading based on historical data
-def backtest(ticker:str, strategy):
+def run_backtest(ticker:str, strategy):
     print(f"\nRunning backtest for {ticker}...")
     df = load_price(ticker)
     portfolio = Portfolio()
+
+    
+
     for i in range(20,len(df)):
         window = df.iloc[:i]
         current_price = df.iloc[i]["price"]
         current_prices = {ticker: current_price}
         signal = strategy(window, ticker)
 
-        if signal == "buy":
+        if signal == "buy" and portfolio.positions.get(ticker, 0) == 0:
             quantity = int(portfolio.cash // current_price)
             portfolio.buy(ticker, current_price, quantity)
         elif signal == "sell":
@@ -64,5 +68,44 @@ def backtest(ticker:str, strategy):
 
     return portfolio
 
+#Chunk 3 calculate metrics
+def calculate_metrics(portfolio: Portfolio, initial_cash: float = 10000.0) -> Dict[str, float]:
+    final_value = portfolio.history[-1]
+    total_return = (final_value - initial_cash) / initial_cash * 100
 
+    daily_returns = pd.Series(portfolio.history).pct_change().dropna()
+    sharpe = daily_returns.mean() / daily_returns.std() * (252 ** 0.5)
 
+    peak = pd.Series(portfolio.history).cummax()
+    drawdown = (pd.Series(portfolio.history) - peak) / peak
+    max_drawdown = drawdown.min() * 100
+    
+    print(f"\n--- Results ---")
+    print(f"Starting cash:  ${initial_cash:,.2f}")
+    print(f"Final value:    ${final_value:,.2f}")
+    print(f"Total return:   {total_return:.2f}%")
+    print(f"Sharpe ratio:   {sharpe:.2f}")
+    print(f"Max drawdown:   {max_drawdown:.2f}%")
+
+    return {
+        "total_return": total_return,
+        "sharpe": sharpe,
+        "max_drawdown": max_drawdown,
+        "final_value": final_value
+    }
+#moving average crossover strategy function
+def moving_average_strategy (window: pd.DataFrame, ticker:str) -> str:
+    if len(window) < 20:
+        return "hold"
+    short_ma = window["price"].tail(5).mean()
+    long_ma = window["price"].tail(20).mean()
+
+    if short_ma > long_ma:
+        return "buy"
+    elif short_ma < long_ma:
+        return "sell"
+    return "hold"
+
+if __name__ == "__main__":
+    portfolio = run_backtest("AAPL", moving_average_strategy)
+    calculate_metrics(portfolio)

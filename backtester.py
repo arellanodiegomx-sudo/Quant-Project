@@ -1,5 +1,4 @@
 # Portfolio class chunk 1
-import psycopg2
 from database import get_connection
 from dataclasses import dataclass, field
 from typing import Dict
@@ -106,6 +105,40 @@ def moving_average_strategy (window: pd.DataFrame, ticker:str) -> str:
         return "sell"
     return "hold"
 
+
+#Mean reversion strategy function
+def mean_reversion_strategy(window: pd.DataFrame, ticker:str) -> str:
+    if len(window) < 20:
+        return "hold"
+    mean = window["price"].tail(20).mean()
+    std = window["price"].tail(20).std()
+    current_price = window["price"].iloc[-1]
+    if current_price < mean - std:
+        return "buy"
+    elif current_price > mean + std:
+        return "sell"
+    return "hold"
+#momentum strategy function
+def momentum_strategy(window: pd.DataFrame, ticker:str) -> str:
+    if len(window) < 20:
+        return "hold"
+    returns = window["price"].pct_change().tail(10)
+    if returns.mean() > 0.001:
+        return "buy"
+    elif returns.mean() < -0.001:
+        return "sell"
+    return "hold"
+
 if __name__ == "__main__":
-    portfolio = run_backtest("AAPL", moving_average_strategy)
-    calculate_metrics(portfolio)
+    strategies = {
+        "Moving Average": moving_average_strategy,
+        "Mean Reversion": mean_reversion_strategy,
+        "Momentum": momentum_strategy
+    }
+
+    for name, strategy in strategies.items():
+        print(f"\n{'='*40}")
+        print(f"Strategy: {name}")
+        print(f"{'='*40}")
+        portfolio = run_backtest("AAPL", strategy)
+        calculate_metrics(portfolio)

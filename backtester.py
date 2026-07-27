@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 import pandas as pd
 import numpy as np
+from risk import RiskManager
 
 @dataclass
 class Portfolio:
@@ -48,6 +49,11 @@ def run_backtest(ticker:str, strategy):
     print(f"\nRunning backtest for {ticker}...")
     df = load_price(ticker)
     portfolio = Portfolio()
+    risk = RiskManager()
+    peak_value = portfolio.cash
+    buy_price = None
+    halted = False
+
 
     
 
@@ -57,13 +63,34 @@ def run_backtest(ticker:str, strategy):
         current_prices = {ticker: current_price}
         signal = strategy(window, ticker)
 
+        current_value = portfolio.total_value(current_prices)
+        peak_value = max(peak_value, current_value)
+
+        if risk.should_halt(peak_value, current_value):
+            if not halted:
+                print(f"HALTED - max drawdown reached")
+                halted = True
+            portfolio.history.append(current_value)
+            continue
+
+    
+
+        if buy_price and portfolio.positions.get(ticker, 0) > 0:
+            if risk.should_stop_loss(buy_price, current_price):
+                portfolio.sell(ticker, current_price)
+                print(f"STOP LOSS triggered")
+                buy_price = None
+
         if signal == "buy" and portfolio.positions.get(ticker, 0) == 0:
-            quantity = int(portfolio.cash // current_price)
+            quantity = risk.position_size(portfolio.cash, current_price)
             portfolio.buy(ticker, current_price, quantity)
-        elif signal == "sell":
+            buy_price = current_price
+        elif signal == "sell" and portfolio.positions.get(ticker, 0) > 0:
             portfolio.sell(ticker, current_price)
+            buy_price = None
 
         portfolio.history.append(portfolio.total_value(current_prices))
+
 
     return portfolio
 

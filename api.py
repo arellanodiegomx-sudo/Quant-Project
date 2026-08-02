@@ -41,7 +41,7 @@ def get_prices(ticker:str):
     conn.close()
     return {"ticker": ticker, "prices": [{"date": str(r[0]), "price": r[1]} for r in rows]}
 
-@app.post("/backetest")
+@app.post("/backtest")
 def run_backtest_endpoint(request: BacktestRequest):
     strategy = STRATEGIES.get(request.strategy)
     if not strategy:

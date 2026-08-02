@@ -3,7 +3,7 @@ from dataclasses import dataclass
 @dataclass
 class RiskManager:
     max_position_pct: float = 0.20
-    stop_loss_pct: float = 0.10
+    stop_loss_pct: float = 0.05
     max_drawdown_pct: float = 0.15
 
     def position_size(self, cash: float, price: float) -> int:

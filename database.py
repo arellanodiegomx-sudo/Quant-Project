@@ -1,15 +1,20 @@
 import psycopg2
 from datetime import datetime
 
+import os
+
 # connection function
 def get_connection():
-    conn = psycopg2.connect(
-        dbname = "quant_db",
-        user = "diegoarellano",
-        password = "",
-        host = "localhost",
-        #port not needed if using default port 5432
-    )
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        conn = psycopg2.connect(database_url)
+    else:
+        conn = psycopg2.connect(
+            dbname="quant_db",
+            user="diegoarellano",
+            password="",
+            host="localhost"
+        )
     return conn
 
 def save_price(ticker: str, price: float):
